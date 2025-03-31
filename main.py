@@ -1,33 +1,21 @@
+#!/usr/bin/env python
+"""Example script demonstrating usage of the systemair_api package."""
+
 import os
 import time
-from auth.authenticator import SystemairAuthenticator
-from api.systemair_api import SystemairAPI
-from api.websocket_client import SystemairWebSocket
-from models.ventilation_unit import VentilationUnit
-from utils.constants import USER_MODE_ENUM
-from utils.register_constants import RegisterConstants
-
 from dotenv import load_dotenv
 
-# def on_websocket_message(data):
-#     if data["type"] == "SYSTEM_EVENT" and data["action"] == "DEVICE_STATUS_UPDATE":
-#         properties = data["properties"]
-#         print(f"\n{datetime.now()} - WebSocket Update:")
-#         print(f"User Mode: {USER_MODES.get(properties['userMode'], {}).get('name', 'Unknown')} ({properties['userMode']})")
-#         print(f"Airflow: {AIRFLOW_LEVELS.get(properties['airflow'], 'Unknown')} ({properties['airflow']})")
-#         print(f"Temperature: {properties['temperature']}°C")
-#         print(f"Supply Air Temperature: {properties['temperatures']['sat']}°C")
-#         print(f"Outdoor Air Temperature: {properties['temperatures']['oat']}°C")
-#         print(f"Setpoint: {properties['temperatures']['setpoint']}°C")
-#         print(f"Humidity: {properties['humidity']}%")
-#         print(f"Air Quality: {properties['airQuality']}")
-#         print(f"Filter Expiration: {properties['filterExpiration']} seconds")
+from systemair_api.auth.authenticator import SystemairAuthenticator
+from systemair_api.api.systemair_api import SystemairAPI
+from systemair_api.api.websocket_client import SystemairWebSocket
+from systemair_api.models.ventilation_unit import VentilationUnit
+from systemair_api.utils.constants import UserModes
 
-load_dotenv()
+# Dictionary to store ventilation units by device ID
 ventilation_units = {}
 
-
 def get_user_devices(api):
+    """Get and initialize VentilationUnit objects for all user devices."""
     response = api.get_account_devices()
     if response and 'data' in response:
         devices = response['data'].get('GetAccountDevices', [])
@@ -37,20 +25,22 @@ def get_user_devices(api):
     else:
         print("Failed to fetch user devices")
 
-
 def on_websocket_message(data):
+    """Handle incoming WebSocket messages."""
     if data["type"] == "SYSTEM_EVENT" and data["action"] == "DEVICE_STATUS_UPDATE":
         device_id = data["properties"]["id"]
         if device_id in ventilation_units:
             ventilation_units[device_id].update_from_websocket(data)
             ventilation_units[device_id].print_status()
 
-
 def main():
-    # Replace with your actual email and password
+    """Run the example application."""
+    # Load environment variables
+    load_dotenv()
+    
+    # Get credentials
     email = os.getenv('EMAIL')
     password = os.getenv('PASSWORD')
-
 
     if not email or not password:
         print("Error: Email or password not found in environment variables")
@@ -77,8 +67,6 @@ def main():
 
         # Broadcast device statuses
         broadcast_result = api.broadcast_device_statuses(device_ids)
-        # print(f"\n{datetime.now()} - Broadcast Device Statuses Result:")
-        # print(broadcast_result)
         print("Fetching initial status for all devices...")
         for device_id, unit in ventilation_units.items():
             try:
@@ -90,7 +78,6 @@ def main():
                     print(f"Failed to fetch device status for {unit.name}")
             except Exception as e:
                 print(f"Error fetching device status for {unit.name}: {e}")
-        loops = 0
 
         while True:
             print(f"\nCurrent token expiry: {authenticator.token_expiry}")
@@ -132,7 +119,6 @@ def main():
             print(f"\nWaiting 60 seconds before next refresh...")
             time.sleep(60)
 
-
     except KeyboardInterrupt:
         print("Program terminated by user.")
     except Exception as e:
@@ -140,7 +126,6 @@ def main():
     finally:
         if websocket_client:
             websocket_client.disconnect()
-
 
 if __name__ == "__main__":
     main()

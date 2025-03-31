@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock, MagicMock
 import json
 import threading
 
-from api.websocket_client import SystemairWebSocket
+from systemair_api.api.websocket_client import SystemairWebSocket
 
 
 class TestSystemairWebSocket:

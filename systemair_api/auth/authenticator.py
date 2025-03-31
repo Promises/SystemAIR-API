@@ -1,13 +1,30 @@
+"""SystemairAuthenticator - Authentication module for Systemair Home Solutions cloud."""
+
 import uuid
 import requests
 import json
 import base64
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from utils.constants import AUTH_URL, TOKEN_URL, CLIENT_ID, REDIRECT_URI
+from systemair_api.utils.constants import APIEndpoints, CLIENT_ID, REDIRECT_URI
 
 class SystemairAuthenticator:
+    """Authentication handler for Systemair Home Solutions cloud.
+    
+    Manages the OAuth2 authentication flow, including:
+    - Initial login with username/password
+    - Token exchange
+    - Token refresh
+    - Token validation
+    """
+    
     def __init__(self, email, password):
+        """Initialize the authenticator with user credentials.
+        
+        Args:
+            email: User's email address
+            password: User's password
+        """
         self.email = email
         self.password = password
         self.session = requests.Session()
@@ -16,9 +33,22 @@ class SystemairAuthenticator:
         self.token_expiry = None
 
     def generate_state_parameter(self):
+        """Generate a random state parameter for the OAuth flow.
+        
+        Returns:
+            str: A random UUID as string
+        """
         return str(uuid.uuid4())
 
     def construct_auth_url(self, state):
+        """Construct the OAuth authorization URL.
+        
+        Args:
+            state: State parameter to include in the URL
+            
+        Returns:
+            str: Complete authorization URL
+        """
         params = {
             "client_id": CLIENT_ID,
             "response_type": "code",
@@ -27,9 +57,26 @@ class SystemairAuthenticator:
             "scope": "openid"
         }
         query_string = "&".join([f"{key}={value}" for key, value in params.items()])
-        return f"{AUTH_URL}?{query_string}"
+        return f"{APIEndpoints.AUTH}?{query_string}"
 
     def simulate_login(self, auth_url):
+        """Simulate a browser login to obtain the authorization code.
+        
+        This method simulates the browser login process by:
+        1. Fetching the login page
+        2. Extracting the form and input fields
+        3. Submitting the form with credentials
+        4. Following redirects to obtain the authorization code
+        
+        Args:
+            auth_url: The authorization URL to start the flow
+            
+        Returns:
+            str: The authorization code if successful
+            
+        Raises:
+            Exception: If login fails or authorization code cannot be obtained
+        """
         # print(f"Fetching login page from: {auth_url}")
         response = self.session.get(auth_url)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -81,6 +128,17 @@ class SystemairAuthenticator:
             raise Exception('Login failed or redirect did not occur')
 
     def exchange_code_for_token(self, auth_code):
+        """Exchange an authorization code for access and refresh tokens.
+        
+        Args:
+            auth_code: The authorization code obtained from login
+            
+        Returns:
+            dict: Token response containing access_token, refresh_token, etc.
+            
+        Raises:
+            requests.exceptions.HTTPError: If token exchange fails
+        """
         data = {
             'grant_type': 'authorization_code',
             'code': auth_code,
@@ -101,7 +159,7 @@ class SystemairAuthenticator:
             'TE': 'trailers',
         }
 
-        response = requests.post(TOKEN_URL, data=data, headers=headers)
+        response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers)
         if response.status_code == 200:
             return response.json()
         else:
@@ -109,6 +167,18 @@ class SystemairAuthenticator:
             response.raise_for_status()
 
     def authenticate(self):
+        """Perform the full authentication flow.
+        
+        This method orchestrates the complete authentication process:
+        1. Generate state parameter
+        2. Construct auth URL
+        3. Simulate login to get authorization code
+        4. Exchange code for tokens
+        5. Extract token expiry time
+        
+        Returns:
+            str: The access token if successful
+        """
         state = self.generate_state_parameter()
         auth_url = self.construct_auth_url(state)
         auth_code = self.simulate_login(auth_url)
@@ -119,6 +189,14 @@ class SystemairAuthenticator:
         return self.access_token
 
     def refresh_access_token(self):
+        """Refresh the access token using the refresh token.
+        
+        Returns:
+            str: The new access token if successful
+            
+        Raises:
+            Exception: If refresh fails or no refresh token is available
+        """
         if not self.refresh_token:
             raise Exception("No refresh token available. Please authenticate first.")
 
@@ -141,7 +219,7 @@ class SystemairAuthenticator:
             'Sec-Fetch-Site': 'same-site',
         }
 
-        response = requests.post(TOKEN_URL, data=data, headers=headers)
+        response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers)
         if response.status_code == 200:
             token_data = response.json()
             self.access_token = token_data.get('access_token')
@@ -152,7 +230,17 @@ class SystemairAuthenticator:
             raise Exception(f"Failed to refresh token: {response.text}")
 
     def get_token_expiry(self, token):
-        """Decode the JWT and extract the expiry time."""
+        """Decode the JWT and extract the expiry time.
+        
+        Args:
+            token: JWT token to decode
+            
+        Returns:
+            datetime: Token expiry time as datetime object
+            
+        Raises:
+            ValueError: If expiry time cannot be found in the token
+        """
         try:
             # Split the token and get the payload part (second part)
             payload = token.split('.')[1]
@@ -178,7 +266,11 @@ class SystemairAuthenticator:
             return None
 
     def is_token_valid(self):
-        """Check if the current token is still valid."""
+        """Check if the current token is still valid.
+        
+        Returns:
+            bool: True if token is valid, False otherwise
+        """
         if not self.token_expiry:
             return False
 

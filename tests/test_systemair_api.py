@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import patch, Mock
 import requests
 
-from api.systemair_api import SystemairAPI
-from utils.constants import GATEWAY_API_URL, REMOTE_API_URL
+from systemair_api.api.systemair_api import SystemairAPI
+from systemair_api.utils.constants import APIEndpoints
 
 
 class TestSystemairAPI:

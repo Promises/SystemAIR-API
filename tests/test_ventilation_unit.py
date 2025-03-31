@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch, Mock
 
-from models.ventilation_unit import VentilationUnit
-from utils.constants import USER_MODE_ENUM
-from utils.register_constants import RegisterConstants
+from systemair_api.models.ventilation_unit import VentilationUnit
+from systemair_api.utils.constants import UserModes
+from systemair_api.utils.register_constants import RegisterConstants
 
 
 class TestVentilationUnit:
@@ -104,7 +104,7 @@ class TestVentilationUnit:
         # Assertions - verify print was called multiple times
         assert mock_print.call_count > 5
 
-    @patch('api.systemair_api.SystemairAPI.write_data_item')
+    @patch('systemair_api.api.systemair_api.SystemairAPI.write_data_item')
     def test_set_value(self, mock_write_data_item, ventilation_unit):
         """Test setting a register value"""
         # Setup
@@ -123,7 +123,7 @@ class TestVentilationUnit:
             ventilation_unit.identifier, register_id, value
         )
 
-    @patch('api.systemair_api.SystemairAPI.write_data_item')
+    @patch('systemair_api.api.systemair_api.SystemairAPI.write_data_item')
     def test_set_value_failure(self, mock_write_data_item, ventilation_unit):
         """Test handling failure when setting a register value"""
         # Setup
@@ -148,7 +148,7 @@ class TestVentilationUnit:
         mock_set_value.return_value = True
         
         # Call the method
-        mode_value = USER_MODE_ENUM.AWAY
+        mode_value = UserModes.AWAY
         ventilation_unit.set_user_mode(mock_api, mode_value)
         
         # Assertions

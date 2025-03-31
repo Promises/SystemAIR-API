@@ -6,6 +6,25 @@ A Python library for communicating with and controlling Systemair ventilation un
 
 SystemAIR-API allows you to connect to your Systemair ventilation units, retrieve status information, and control various functions such as ventilation modes, airflow levels, and temperature settings. The library provides a clean interface for interacting with your Systemair units programmatically, making it ideal for home automation systems, custom monitoring solutions, or integration with other smart home platforms.
 
+### Package Structure
+
+```
+systemair_api/
+├── __init__.py       # Main package exports
+├── __main__.py       # Script for running as a module
+├── api/              # API communication modules
+│   ├── systemair_api.py     # Core API client
+│   └── websocket_client.py  # WebSocket for real-time updates
+├── auth/             # Authentication handling
+│   └── authenticator.py     # OAuth2 authentication
+├── models/           # Data models
+│   ├── ventilation_data.py  # Mode/level definitions
+│   └── ventilation_unit.py  # Main ventilation unit class
+└── utils/            # Utilities
+    ├── constants.py          # API endpoints and modes
+    └── register_constants.py # Register IDs for device control
+```
+
 ## Features
 
 - Authentication with Systemair Home Solutions cloud
@@ -22,10 +41,20 @@ SystemAIR-API allows you to connect to your Systemair ventilation units, retriev
 Install from source:
 
 ```bash
-git clone https://github.com/yourusername/SystemAIR-API.git
+git clone https://github.com/henningbe/SystemAIR-API.git
 cd SystemAIR-API
 pip install -r requirements.txt
 pip install -e .
+```
+
+You can run the module directly after installation:
+
+```bash
+# Run the example program
+python -m systemair_api
+
+# Import in your own projects
+import systemair_api
 ```
 
 ## Requirements
@@ -44,9 +73,9 @@ All dependencies are listed in the `requirements.txt` file.
 import os
 import time
 from dotenv import load_dotenv
-from auth.authenticator import SystemairAuthenticator
-from api.systemair_api import SystemairAPI
-from api.websocket_client import SystemairWebSocket
+from systemair_api.auth.authenticator import SystemairAuthenticator
+from systemair_api.api.systemair_api import SystemairAPI
+from systemair_api.api.websocket_client import SystemairWebSocket
 
 # Load environment variables
 load_dotenv()
@@ -84,8 +113,8 @@ if devices and 'data' in devices:
         api.broadcast_device_statuses([device_id])
         
         # Example: Change user mode to Away
-        # from utils.constants import USER_MODE_ENUM
-        # api.write_data_item(device_id, 30, USER_MODE_ENUM.AWAY + 1)
+        # from systemair_api.utils.constants import UserModes
+        # api.write_data_item(device_id, 30, UserModes.AWAY + 1)
         
         # Keep connection alive for a while
         time.sleep(60)
@@ -101,7 +130,7 @@ if devices and 'data' in devices:
 First, authenticate with your Systemair account credentials:
 
 ```python
-from auth.authenticator import SystemairAuthenticator
+from systemair_api.auth.authenticator import SystemairAuthenticator
 
 authenticator = SystemairAuthenticator('your.email@example.com', 'your_password')
 access_token = authenticator.authenticate()
@@ -116,7 +145,7 @@ if not authenticator.is_token_valid():
 Use the SystemairAPI class to interact with the Systemair API:
 
 ```python
-from api.systemair_api import SystemairAPI
+from systemair_api.api.systemair_api import SystemairAPI
 
 api = SystemairAPI(access_token)
 
@@ -137,7 +166,7 @@ api.write_data_item(device_id, 32, 210)  # Set temperature setpoint to 21.0°C
 Get real-time updates using the WebSocket client:
 
 ```python
-from api.websocket_client import SystemairWebSocket
+from systemair_api.api.websocket_client import SystemairWebSocket
 
 def on_message(data):
     if data["type"] == "SYSTEM_EVENT" and data["action"] == "DEVICE_STATUS_UPDATE":
@@ -161,7 +190,7 @@ ws_client.disconnect()
 The VentilationUnit class provides a convenient interface for managing units:
 
 ```python
-from models.ventilation_unit import VentilationUnit
+from systemair_api.models.ventilation_unit import VentilationUnit
 
 # Create and configure a unit
 unit = VentilationUnit("IAM_123456789ABC", "Living Room Ventilation")
@@ -176,7 +205,8 @@ print(unit.user_mode)  # Current user mode
 print(unit.airflow)  # Current airflow level
 
 # Set user mode
-unit.set_user_mode(api, 3)  # Set to Refresh mode
+from systemair_api.utils.constants import UserModes
+unit.set_user_mode(api, UserModes.REFRESH)  # Set to Refresh mode
 
 # Print full status
 unit.print_status()
@@ -187,19 +217,19 @@ unit.print_status()
 The library provides several constants and enumerations to make working with the API easier:
 
 ```python
-from utils.constants import USER_MODE_ENUM
+from systemair_api.utils.constants import UserModes
 
 # User modes
-USER_MODE_ENUM.AUTO    # 0
-USER_MODE_ENUM.MANUAL  # 1
-USER_MODE_ENUM.CROWDED # 2
-USER_MODE_ENUM.REFRESH # 3
-USER_MODE_ENUM.FIREPLACE # 4
-USER_MODE_ENUM.AWAY    # 5
-USER_MODE_ENUM.HOLIDAY # 6
+UserModes.AUTO      # 0
+UserModes.MANUAL    # 1
+UserModes.CROWDED   # 2
+UserModes.REFRESH   # 3
+UserModes.FIREPLACE # 4
+UserModes.AWAY      # 5
+UserModes.HOLIDAY   # 6
 
 # Access register constants directly
-from utils.register_constants import RegisterConstants
+from systemair_api.utils.register_constants import RegisterConstants
 
 # Example registers
 RegisterConstants.REG_MAINBOARD_USERMODE_MODE_HMI  # 29
@@ -228,16 +258,22 @@ password = os.getenv('PASSWORD')
 
 ## Testing
 
-The project includes a comprehensive test suite for all components. To run the tests:
+The project includes a comprehensive test suite with over 85% code coverage. To run the tests:
 
 ```bash
 # Install test dependencies
 pip install -r requirements.txt
 
 # Run tests with coverage report
-pytest
+pytest --cov=systemair_api --cov-report=term --cov-report=html
 
 # The coverage report will be available in htmlcov/index.html
+
+# Run a specific test file
+pytest tests/test_ventilation_unit.py
+
+# Run tests with verbose output
+pytest -v
 ```
 
 ## Contributing

@@ -2,12 +2,12 @@ import pytest
 from unittest.mock import patch, Mock, MagicMock
 import os
 
-from auth.authenticator import SystemairAuthenticator
-from api.systemair_api import SystemairAPI
-from api.websocket_client import SystemairWebSocket
-from models.ventilation_unit import VentilationUnit
-from utils.constants import USER_MODE_ENUM
-from utils.register_constants import RegisterConstants
+from systemair_api.auth.authenticator import SystemairAuthenticator
+from systemair_api.api.systemair_api import SystemairAPI
+from systemair_api.api.websocket_client import SystemairWebSocket
+from systemair_api.models.ventilation_unit import VentilationUnit
+from systemair_api.utils.constants import UserModes
+from systemair_api.utils.register_constants import RegisterConstants
 
 
 class TestIntegration:
@@ -78,7 +78,7 @@ class TestIntegration:
         unit = VentilationUnit("IAM_123456789ABC", "Test Unit")
         
         # Change user mode
-        result = unit.set_user_mode(api, USER_MODE_ENUM.AWAY)
+        result = unit.set_user_mode(api, UserModes.AWAY)
         
         # Assertions
         assert mock_authenticate.called

@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
-from auth.authenticator import SystemairAuthenticator
+from systemair_api.auth.authenticator import SystemairAuthenticator
 
 
 class TestSystemairAuthenticator:

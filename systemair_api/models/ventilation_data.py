@@ -1,3 +1,5 @@
+"""Ventilation data constants and definitions."""
+
 USER_MODES = {
     0: {
         "name": "Auto",
@@ -46,3 +48,16 @@ AIRFLOW_LEVELS = {
     6: "Demand",
     7: "External"
 }
+
+class VentilationData:
+    """Data definitions for ventilation units."""
+    
+    @staticmethod
+    def get_user_mode_name(mode_id):
+        """Get the name of a user mode by ID."""
+        return USER_MODES.get(mode_id, {}).get("name", "Unknown")
+    
+    @staticmethod
+    def get_airflow_level_name(level_id):
+        """Get the name of an airflow level by ID."""
+        return AIRFLOW_LEVELS.get(level_id, "Unknown")

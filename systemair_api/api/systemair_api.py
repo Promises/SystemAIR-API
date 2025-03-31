@@ -1,8 +1,21 @@
+"""SystemairAPI - Core API communication module for Systemair ventilation units."""
+
 import requests
-from utils.constants import REMOTE_API_URL, GATEWAY_API_URL
+from systemair_api.utils.constants import APIEndpoints
 
 class SystemairAPI:
+    """Core API interface for communicating with Systemair Home Solutions API.
+    
+    Provides methods for discovering devices, fetching device status,
+    and sending control commands to ventilation units.
+    """
+    
     def __init__(self, access_token):
+        """Initialize the SystemairAPI with an access token.
+        
+        Args:
+            access_token: A valid JWT access token from authentication
+        """
         self.access_token = access_token
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0',
@@ -20,6 +33,14 @@ class SystemairAPI:
         }
 
     def broadcast_device_statuses(self, device_ids):
+        """Broadcast requests for device statuses to trigger WebSocket updates.
+        
+        Args:
+            device_ids: List of device identifiers to request updates for
+            
+        Returns:
+            dict: API response or None if error occurred
+        """
         data = {
             "variables": {"deviceIds": device_ids},
             "query": """
@@ -30,7 +51,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(GATEWAY_API_URL, headers=self.headers, json=data)
+            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -38,6 +59,14 @@ class SystemairAPI:
             return None
 
     def fetch_device_status(self, device_id):
+        """Fetch detailed status for a specific device.
+        
+        Args:
+            device_id: The unique identifier of the device
+            
+        Returns:
+            dict: API response with detailed device status or None if error occurred
+        """
         headers = self.headers.copy()
         headers['device-id'] = device_id
         headers['device-type'] = 'LEGACY'
@@ -57,7 +86,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(REMOTE_API_URL, headers=headers, json=data)
+            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -65,6 +94,11 @@ class SystemairAPI:
             return None
 
     def get_account_devices(self):
+        """Get all devices associated with the current account.
+        
+        Returns:
+            dict: API response with devices list or None if error occurred
+        """
         data = {
             "operationName": "GetLoggedInAccount",
             "variables": {},
@@ -89,7 +123,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(GATEWAY_API_URL, headers=self.headers, json=data)
+            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -98,6 +132,16 @@ class SystemairAPI:
 
 
     def write_data_item(self, device_id, register_id, value):
+        """Write a value to a specific register on a device.
+        
+        Args:
+            device_id: The unique identifier of the device
+            register_id: The register ID to write to
+            value: The value to write
+            
+        Returns:
+            dict: API response indicating success or None if error occurred
+        """
         headers = self.headers.copy()
         headers['device-id'] = device_id
         headers['device-type'] = 'LEGACY'
@@ -116,7 +160,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(REMOTE_API_URL, headers=headers, json=data)
+            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:

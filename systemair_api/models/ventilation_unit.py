@@ -1,12 +1,17 @@
+"""Ventilation unit model."""
+
 from datetime import datetime
 
-from models.ventilation_data import USER_MODES
-from utils.constants import USER_MODE_ENUM
-from utils.register_constants import RegisterConstants
+from systemair_api.models.ventilation_data import USER_MODES
+from systemair_api.utils.constants import UserModes
+from systemair_api.utils.register_constants import RegisterConstants
 
 
 class VentilationUnit:
+    """Model representing a Systemair ventilation unit."""
+    
     def __init__(self, identifier, name):
+        """Initialize a ventilation unit with a unique identifier and name."""
         self.identifier = identifier
         self.name = name
         self.model = None
@@ -59,6 +64,7 @@ class VentilationUnit:
         }
 
     def update_from_api(self, api_data):
+        """Update the ventilation unit with data from the API."""
         if 'data' in api_data and 'GetView' in api_data['data']:
             children = api_data['data']['GetView']['children']
             for child in children:
@@ -67,6 +73,7 @@ class VentilationUnit:
                     self._update_attribute(data_item)
 
     def _update_attribute(self, data_item):
+        """Update a specific attribute based on register data."""
         register_id = data_item['id']
         value = data_item['value']
 
@@ -102,6 +109,7 @@ class VentilationUnit:
             self.active_functions[function_name] = value
 
     def update_from_websocket(self, ws_data):
+        """Update the ventilation unit with data from a WebSocket message."""
         properties = ws_data.get("properties", {})
 
         # Update basic properties
@@ -132,9 +140,11 @@ class VentilationUnit:
             self.versions = versions
 
     def __str__(self):
+        """String representation of the ventilation unit."""
         return f"VentilationUnit: {self.name} (ID: {self.identifier})"
 
     def get_status(self):
+        """Get the current status of the ventilation unit as a dictionary."""
         return {
             "name": self.name,
             "model": self.model,
@@ -164,6 +174,7 @@ class VentilationUnit:
         }
 
     def print_status(self):
+        """Print the current status of the ventilation unit."""
         print(f"\n{datetime.now()} - Status for {self.name}:")
         status = self.get_status()
         for key, value in status.items():
@@ -186,6 +197,17 @@ class VentilationUnit:
                 print(f"  - {function.replace('_', ' ').title()}")
 
     def set_value(self, api, key: RegisterConstants, value, noprint = False):
+        """Set a register value for the ventilation unit.
+        
+        Args:
+            api: The SystemairAPI instance to use for communication
+            key: The register key to set
+            value: The value to set
+            noprint: Whether to suppress print output
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
         result = api.write_data_item(
             self.identifier,
             key,
@@ -200,9 +222,17 @@ class VentilationUnit:
             return result and result.get('data', {}).get('WriteDataItems')
 
     def set_user_mode(self, api, mode_value):
+        """Set the user mode for the ventilation unit.
+        
+        Args:
+            api: The SystemairAPI instance to use for communication
+            mode_value: The mode value to set (use UserModes enum)
+            
+        Returns:
+            None
+        """
         if self.set_value(api, RegisterConstants.REG_MAINBOARD_USERMODE_HMI_CHANGE_REQUEST, mode_value + 1, True):
             # self.user_mode = mode_value
             print(f"User mode set to {USER_MODES.get(mode_value).get('name')} for {self.name}")
         else:
             print(f"Failed to set user mode for {self.name}")
-
