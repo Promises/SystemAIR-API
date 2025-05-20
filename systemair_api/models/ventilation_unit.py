@@ -30,6 +30,13 @@ class VentilationUnit:
         self.update_in_progress: bool = False
         self.configuration_wizard_active: bool = False
         self.user_mode_remaining_time: Optional[int] = None
+        self.user_mode_times: Dict[str, Optional[int]] = {
+            "holiday": None,  # REG_MAINBOARD_USERMODE_HOLIDAY_TIME
+            "away": None,     # REG_MAINBOARD_USERMODE_AWAY_TIME
+            "fireplace": None, # REG_MAINBOARD_USERMODE_FIREPLACE_TIME
+            "refresh": None,  # REG_MAINBOARD_USERMODE_REFRESH_TIME
+            "crowded": None,  # REG_MAINBOARD_USERMODE_CROWDED_TIME
+        }
         self.temperatures: Dict[str, Optional[float]] = {
             "oat": None,  # Outdoor Air Temperature
             "sat": None,  # Supply Air Temperature
@@ -87,6 +94,16 @@ class VentilationUnit:
             self.temperatures['setpoint'] = value / 10.0
         elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_REMAINING_TIME_L:
             self.user_mode_remaining_time = value
+        elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME:
+            self.user_mode_times['holiday'] = value
+        elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME:
+            self.user_mode_times['away'] = value
+        elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME:
+            self.user_mode_times['fireplace'] = value
+        elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME:
+            self.user_mode_times['refresh'] = value
+        elif register_id == RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME:
+            self.user_mode_times['crowded'] = value
         elif register_id == RegisterConstants.REG_MAINBOARD_IAQ_LEVEL:
             self.air_quality = value
         elif register_id == RegisterConstants.REG_MAINBOARD_SENSOR_OAT:
@@ -212,7 +229,8 @@ class VentilationUnit:
             "suw_required": self.suw_required,
             "reheater_type": self.reheater_type,
             "active_functions": self.active_functions,
-            "user_mode_remaining_time": self.user_mode_remaining_time
+            "user_mode_remaining_time": self.user_mode_remaining_time,
+            "user_mode_times": self.user_mode_times
         }
 
     def print_status(self) -> None:
@@ -294,3 +312,36 @@ class VentilationUnit:
             print(f"Temperature set to {temperature/10.0:.1f}°C for {self.name}")
         else:
             print(f"Failed to set temperature for {self.name}")
+            
+    def set_user_mode_time(self, api: SystemairAPI, mode: str, time_value: int) -> None:
+        """Set the time duration for a specific user mode.
+        
+        Args:
+            api: The SystemairAPI instance to use for communication
+            mode: The mode to set time for ('holiday', 'away', 'fireplace', 'refresh', 'crowded')
+            time_value: The time duration in minutes
+            
+        Returns:
+            None
+        """
+        # Map mode names to their respective registers
+        mode_registers = {
+            'holiday': RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME,
+            'away': RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME,
+            'fireplace': RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME,
+            'refresh': RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME,
+            'crowded': RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME,
+        }
+        
+        if mode not in mode_registers:
+            print(f"Invalid mode: {mode}. Must be one of {list(mode_registers.keys())}")
+            return
+            
+        register = mode_registers[mode]
+        
+        if self.set_value(api, register, time_value, True):
+            print(f"{mode.capitalize()} mode time set to {time_value} minutes for {self.name}")
+            # Update our local cache
+            self.user_mode_times[mode] = time_value
+        else:
+            print(f"Failed to set {mode} mode time for {self.name}")
