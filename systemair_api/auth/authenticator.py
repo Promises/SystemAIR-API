@@ -4,9 +4,11 @@ import uuid
 import requests
 import json
 import base64
+from typing import Dict, Optional, Any, Union, cast
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from systemair_api.utils.constants import APIEndpoints, CLIENT_ID, REDIRECT_URI
+from systemair_api.utils.exceptions import AuthenticationError, TokenRefreshError
 
 class SystemairAuthenticator:
     """Authentication handler for Systemair Home Solutions cloud.
@@ -18,21 +20,21 @@ class SystemairAuthenticator:
     - Token validation
     """
     
-    def __init__(self, email, password):
+    def __init__(self, email: str, password: str) -> None:
         """Initialize the authenticator with user credentials.
         
         Args:
             email: User's email address
             password: User's password
         """
-        self.email = email
-        self.password = password
-        self.session = requests.Session()
-        self.access_token = None
-        self.refresh_token = None
-        self.token_expiry = None
+        self.email: str = email
+        self.password: str = password
+        self.session: requests.Session = requests.Session()
+        self.access_token: Optional[str] = None
+        self.refresh_token: Optional[str] = None
+        self.token_expiry: Optional[datetime] = None
 
-    def generate_state_parameter(self):
+    def generate_state_parameter(self) -> str:
         """Generate a random state parameter for the OAuth flow.
         
         Returns:
@@ -40,7 +42,7 @@ class SystemairAuthenticator:
         """
         return str(uuid.uuid4())
 
-    def construct_auth_url(self, state):
+    def construct_auth_url(self, state: str) -> str:
         """Construct the OAuth authorization URL.
         
         Args:
@@ -59,7 +61,7 @@ class SystemairAuthenticator:
         query_string = "&".join([f"{key}={value}" for key, value in params.items()])
         return f"{APIEndpoints.AUTH}?{query_string}"
 
-    def simulate_login(self, auth_url):
+    def simulate_login(self, auth_url: str) -> str:
         """Simulate a browser login to obtain the authorization code.
         
         This method simulates the browser login process by:
@@ -83,19 +85,23 @@ class SystemairAuthenticator:
 
         form = soup.find('form')
         if not form:
-            raise Exception('Login form not found')
+            raise AuthenticationError('Login form not found')
 
-        action_url = form['action']
-        inputs = form.find_all('input')
+        # Cast to Tag to ensure proper type handling
+        form_tag = cast(Tag, form)
+        action_url = form_tag['action']
+        inputs = form_tag.find_all('input')
 
         form_data = {}
-        for input in inputs:
-            if input['name'] == 'username':
-                form_data[input['name']] = self.email
-            elif input['name'] == 'password':
-                form_data[input['name']] = self.password
-            else:
-                form_data[input['name']] = input.get('value', '')
+        for input_tag in inputs:
+            # Cast each input element to Tag
+            input_tag = cast(Tag, input_tag)
+            if input_tag.get('name') == 'username':
+                form_data[input_tag['name']] = self.email
+            elif input_tag.get('name') == 'password':
+                form_data[input_tag['name']] = self.password
+            elif input_tag.get('name'):
+                form_data[input_tag['name']] = input_tag.get('value', '')
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0',
@@ -104,12 +110,21 @@ class SystemairAuthenticator:
             'Content-Type': 'application/x-www-form-urlencoded',
         }
         # print("Submitting login form...")
-        response = self.session.post(action_url, data=form_data, headers=headers, allow_redirects=False)
+        # Handle potential list type for action_url by ensuring it's a string
+        if isinstance(action_url, list):
+            action_url_str = action_url[0] if action_url else ''
+        else:
+            action_url_str = action_url
+            
+        response = self.session.post(action_url_str, data=form_data, headers=headers, allow_redirects=False)
         # print(f"Login form submission response status: {response.status_code} {response.reason}")
 
         if response.status_code == 302:
             redirect_url = response.headers.get('Location')
             # print("Redirect URL:", redirect_url)
+            
+            if redirect_url is None:
+                raise AuthenticationError('Redirect URL not found in headers')
 
             response = self.session.get(redirect_url, allow_redirects=True)
             # print(f"Redirect follow-up response status: {response.status_code} {response.reason}")
@@ -121,13 +136,13 @@ class SystemairAuthenticator:
                     print("Authentication success")
                     return auth_code
                 else:
-                    raise Exception('Authorization code not found in final URL')
+                    raise AuthenticationError('Authorization code not found in final URL')
             else:
-                raise Exception('Failed to follow redirect URL')
+                raise AuthenticationError('Failed to follow redirect URL')
         else:
-            raise Exception('Login failed or redirect did not occur')
+            raise AuthenticationError('Login failed or redirect did not occur')
 
-    def exchange_code_for_token(self, auth_code):
+    def exchange_code_for_token(self, auth_code: str) -> Dict[str, Any]:
         """Exchange an authorization code for access and refresh tokens.
         
         Args:
@@ -161,12 +176,14 @@ class SystemairAuthenticator:
 
         response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers)
         if response.status_code == 200:
-            return response.json()
+            return cast(Dict[str, Any], response.json())
         else:
             print("Failed to exchange code for token:", response.content)
             response.raise_for_status()
+            # This line is never reached but needed for mypy
+            return {}
 
-    def authenticate(self):
+    def authenticate(self) -> str:
         """Perform the full authentication flow.
         
         This method orchestrates the complete authentication process:
@@ -178,6 +195,9 @@ class SystemairAuthenticator:
         
         Returns:
             str: The access token if successful
+            
+        Raises:
+            AuthenticationError: If authentication fails for any reason
         """
         state = self.generate_state_parameter()
         auth_url = self.construct_auth_url(state)
@@ -185,20 +205,24 @@ class SystemairAuthenticator:
         token_response = self.exchange_code_for_token(auth_code)
         self.access_token = token_response.get('access_token')
         self.refresh_token = token_response.get('refresh_token')
+        
+        if not self.access_token:
+            raise AuthenticationError('No access token found in response')
+            
         self.token_expiry = self.get_token_expiry(self.access_token)
-        return self.access_token
+        return str(self.access_token)
 
-    def refresh_access_token(self):
+    def refresh_access_token(self) -> str:
         """Refresh the access token using the refresh token.
         
         Returns:
             str: The new access token if successful
             
         Raises:
-            Exception: If refresh fails or no refresh token is available
+            TokenRefreshError: If refresh fails or no refresh token is available
         """
         if not self.refresh_token:
-            raise Exception("No refresh token available. Please authenticate first.")
+            raise TokenRefreshError("No refresh token available. Please authenticate first.")
 
         data = {
             'grant_type': 'refresh_token',
@@ -224,12 +248,16 @@ class SystemairAuthenticator:
             token_data = response.json()
             self.access_token = token_data.get('access_token')
             self.refresh_token = token_data.get('refresh_token')  # Update refresh token if provided
+            
+            if not self.access_token:
+                raise TokenRefreshError('No access token found in refresh response')
+                
             self.token_expiry = self.get_token_expiry(self.access_token)
-            return self.access_token
+            return str(self.access_token)
         else:
-            raise Exception(f"Failed to refresh token: {response.text}")
+            raise TokenRefreshError(f"Failed to refresh token: {response.text}")
 
-    def get_token_expiry(self, token):
+    def get_token_expiry(self, token: str) -> Optional[datetime]:
         """Decode the JWT and extract the expiry time.
         
         Args:
@@ -265,7 +293,7 @@ class SystemairAuthenticator:
             print(f"Error decoding token: {e}")
             return None
 
-    def is_token_valid(self):
+    def is_token_valid(self) -> bool:
         """Check if the current token is still valid.
         
         Returns:

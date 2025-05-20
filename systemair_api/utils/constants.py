@@ -1,4 +1,5 @@
 """Constants for the Systemair API, including endpoints and user modes."""
+from enum import IntEnum
 
 CLIENT_ID = "iot-application"
 REDIRECT_URI = "https://homesolutions.systemair.com"
@@ -8,8 +9,7 @@ GATEWAY_API_URL = "https://homesolutions.systemair.com/gateway/api"
 REMOTE_API_URL = "https://homesolutions.systemair.com/remote-api/"
 
 
-
-class UserModes:
+class UserModes(IntEnum):
     """User modes for ventilation units."""
     AUTO = 0
     MANUAL = 1

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 88
-target-version = ["py37", "py38", "py39", "py310"]
+target-version = ["py39", "py310"]
 include = '\.pyi?$'
 
 [tool.isort]
@@ -12,11 +12,15 @@ profile = "black"
 line_length = 88
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_any_unimported = false
+no_implicit_optional = true
+strict_optional = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

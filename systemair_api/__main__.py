@@ -12,12 +12,16 @@ from systemair_api.api.websocket_client import SystemairWebSocket
 from systemair_api.models.ventilation_unit import VentilationUnit
 from systemair_api.utils.constants import UserModes
 
-def on_message(message):
-    """Handle incoming WebSocket messages."""
+def on_message(message: dict) -> None:
+    """Handle incoming WebSocket messages.
+    
+    Args:
+        message: The message received from the WebSocket
+    """
     print("Received WebSocket message:", message)
 
-def main():
-    """Run the example."""
+def main() -> None:
+    """Run the example application demonstrating the SystemAIR API."""
     # Load environment variables from .env file if it exists
     load_dotenv()
     

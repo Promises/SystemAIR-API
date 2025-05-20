@@ -1,6 +1,8 @@
 """Ventilation data constants and definitions."""
 
-USER_MODES = {
+from typing import Dict, Any, Optional, Union, List
+
+USER_MODES: Dict[int, Dict[str, str]] = {
     0: {
         "name": "Auto",
         "description": "Takes care of airflow levels automatically",
@@ -38,7 +40,7 @@ USER_MODES = {
     }
 }
 
-AIRFLOW_LEVELS = {
+AIRFLOW_LEVELS: Dict[int, str] = {
     0: "Off",
     1: "Minimum",
     2: "Low",
@@ -53,11 +55,11 @@ class VentilationData:
     """Data definitions for ventilation units."""
     
     @staticmethod
-    def get_user_mode_name(mode_id):
+    def get_user_mode_name(mode_id: int) -> str:
         """Get the name of a user mode by ID."""
         return USER_MODES.get(mode_id, {}).get("name", "Unknown")
     
     @staticmethod
-    def get_airflow_level_name(level_id):
+    def get_airflow_level_name(level_id: int) -> str:
         """Get the name of an airflow level by ID."""
         return AIRFLOW_LEVELS.get(level_id, "Unknown")

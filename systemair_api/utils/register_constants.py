@@ -300,7 +300,7 @@ class RegisterConstants:
     # Add more constants here as needed
 
     @classmethod
-    def get_register_name(cls, register_number):
+    def get_register_name(cls, register_number: int) -> str:
         """Get the register name for a given register number."""
         for attr, value in cls.__dict__.items():
             if not attr.startswith("__") and value == register_number:
@@ -309,7 +309,7 @@ class RegisterConstants:
 
 
     @classmethod
-    def get_register_name_by_number(cls, register_number):
+    def get_register_name_by_number(cls, register_number: int) -> str:
         """Get the register name for a given register number."""
         for attr, value in cls.__dict__.items():
             if not attr.startswith("__") and value == register_number:
@@ -318,7 +318,7 @@ class RegisterConstants:
 
 
     @classmethod
-    def get_register_name_without_prefix(cls, register_number):
+    def get_register_name_without_prefix(cls, register_number: int) -> str:
         """Get the register name without the REG_MAINBOARD_ prefix."""
         full_name = cls.get_register_name_by_number(register_number)
         return full_name.replace("REG_MAINBOARD_", "")

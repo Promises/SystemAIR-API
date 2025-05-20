@@ -38,13 +38,24 @@ systemair_api/
 
 ## Installation
 
-Install from source:
+### From PyPI (Recommended)
+
+```bash
+pip install systemair-api
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/henningbe/SystemAIR-API.git
 cd SystemAIR-API
-pip install -r requirements.txt
 pip install -e .
+```
+
+For development, install with development dependencies:
+
+```bash
+pip install -e ".[dev]"
 ```
 
 You can run the module directly after installation:
@@ -274,19 +285,95 @@ pytest tests/test_ventilation_unit.py
 
 # Run tests with verbose output
 pytest -v
+
+# Run integration test with real API (requires credentials)
+# Note: This test will make actual API calls
+pytest tests/test_api_connect.py -v
 ```
+
+## Troubleshooting
+
+### API Connection Issues
+
+If you're experiencing connection issues with the API, you can use the diagnostic scripts to help identify the problem:
+
+```bash
+# Run the debug_api.py script to test basic connectivity
+python debug_api.py
+
+# Check the log files for detailed error information
+cat systemair_debug.log
+cat debug_api.log
+```
+
+Common issues and solutions:
+
+1. **Authentication Fails**:
+   - Verify your email and password are correct
+   - Check that you can log in to the Systemair Home Solutions website directly
+   - Look for "Authentication failed" messages in the logs
+
+2. **No Devices Found**:
+   - Verify your account has registered devices in the Systemair Home Solutions portal
+   - Check if the API is returning the expected device list structure
+
+3. **Device Status Updates Fail**:
+   - Check device-specific errors in the logs
+   - Ensure your device ID format matches what's expected by the API
+   - Verify the device is online in the Systemair Home Solutions portal
+
+### WebSocket Connection Issues
+
+If WebSocket updates are not appearing:
+- WebSocket connections can sometimes be blocked by firewalls or network restrictions
+- Try the `test_websocket_connection` test in `tests/test_api_connect.py`
+- Check if your network blocks WebSocket connections (especially on corporate networks)
+
+For a more thorough check of the API connection, you can run:
+
+```bash
+# Create a detailed connection test report
+pytest tests/test_api_connect.py -v > connection_report.txt
+```
+
+This will create a report showing the steps of authentication, device discovery, and status retrieval.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+For detailed information on how to contribute to this project, please read our [CONTRIBUTING.md](CONTRIBUTING.md) guidelines.
+
+In summary:
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your new features or fixes
-4. Ensure all tests pass (`pytest`)
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+3. Install dev dependencies (`pip install -e ".[dev]"`)
+4. Set up pre-commit hooks (`pre-commit install`)
+5. Write tests for your new features or fixes
+6. Ensure all tests pass (`pytest`)
+7. Commit your changes (pre-commit hooks will run automatically)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+## Development
+
+For development work on this library, set up your environment as follows:
+
+```bash
+# Clone the repository
+git clone https://github.com/henningbe/SystemAIR-API.git
+cd SystemAIR-API
+
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install in development mode with all dev dependencies
+pip install -e ".[dev]"
+
+# Set up pre-commit hooks
+pre-commit install
+```
 
 ## License
 
