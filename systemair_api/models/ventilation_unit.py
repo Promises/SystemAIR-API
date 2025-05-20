@@ -282,21 +282,61 @@ class VentilationUnit:
         else:
             return bool(result and result.get('data', {}).get('WriteDataItems'))
 
-    def set_user_mode(self, api: SystemairAPI, mode_value: int) -> None:
+    def set_user_mode(self, api: SystemairAPI, mode_value: int, time_minutes: Optional[int] = None) -> None:
         """Set the user mode for the ventilation unit.
         
         Args:
             api: The SystemairAPI instance to use for communication
             mode_value: The mode value to set (use UserModes enum)
+            time_minutes: Optional time duration in minutes for timed modes
+                (Refresh, Crowded, Fireplace, Away, Holiday)
             
         Returns:
             None
         """
+        # Map mode values to their time registers and determine if we need to set time
+        mode_to_time_register = {
+            UserModes.HOLIDAY: RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME,
+            UserModes.AWAY: RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME,
+            UserModes.FIREPLACE: RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME,
+            UserModes.REFRESH: RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME,
+            UserModes.CROWDED: RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME,
+        }
+        
+        # Set the time value first if provided and this is a timed mode
+        time_register = mode_to_time_register.get(mode_value)
+        if time_minutes is not None and time_register is not None:
+            # Convert minutes to seconds if needed by the API
+            self.set_value(api, time_register, time_minutes, True)
+            # Update local cache
+            mode_key = self.get_mode_name_for_key(mode_value)
+            if mode_key and hasattr(self, "user_mode_times") and mode_key in self.user_mode_times:
+                self.user_mode_times[mode_key] = time_minutes
+        
+        # Then set the mode
         if self.set_value(api, RegisterConstants.REG_MAINBOARD_USERMODE_HMI_CHANGE_REQUEST, mode_value + 1, True):
             # self.user_mode = mode_value
             print(f"User mode set to {USER_MODES.get(mode_value, {}).get('name', 'Unknown')} for {self.name}")
         else:
             print(f"Failed to set user mode for {self.name}")
+            
+    def get_mode_name_for_key(self, mode_value: int) -> str:
+        """Map numeric mode value to string mode key.
+        
+        Args:
+            mode_value: The numeric mode value from UserModes enum
+            
+        Returns:
+            str: The string key name (e.g., 'holiday', 'away', etc.)
+        """
+        mode_map = {
+            UserModes.HOLIDAY: "holiday",
+            UserModes.AWAY: "away",
+            UserModes.FIREPLACE: "fireplace",
+            UserModes.REFRESH: "refresh",
+            UserModes.CROWDED: "crowded"
+        }
+        return mode_map.get(mode_value, "")
             
     def set_temperature(self, api: SystemairAPI, temperature: int) -> None:
         """Set the temperature setpoint for the ventilation unit.
