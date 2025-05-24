@@ -306,9 +306,10 @@ class VentilationUnit:
         # Set the time value first if provided and this is a timed mode
         time_register = mode_to_time_register.get(mode_value)
         if time_minutes is not None and time_register is not None:
-            # Convert minutes to seconds if needed by the API
-            self.set_value(api, time_register, time_minutes, True)
-            # Update local cache
+            # Convert minutes to the units expected by each specific register
+            api_time_value = self._convert_minutes_to_api_units(mode_value, time_minutes)
+            self.set_value(api, time_register, api_time_value, True)
+            # Update local cache (keep in minutes for internal use)
             mode_key = self.get_mode_name_for_key(mode_value)
             if mode_key and hasattr(self, "user_mode_times") and mode_key in self.user_mode_times:
                 self.user_mode_times[mode_key] = time_minutes
@@ -319,6 +320,25 @@ class VentilationUnit:
             print(f"User mode set to {USER_MODES.get(mode_value, {}).get('name', 'Unknown')} for {self.name}")
         else:
             print(f"Failed to set user mode for {self.name}")
+
+    def _convert_minutes_to_api_units(self, mode_value: int, time_minutes: int) -> int:
+        """Convert time in minutes to the units expected by the API for each mode.
+        
+        API expects:
+        - HOLIDAY: days (REG_MAINBOARD_USERMODE_HOLIDAY_TIME = 251)
+        - AWAY: hours (REG_MAINBOARD_USERMODE_AWAY_TIME = 252) 
+        - FIREPLACE: minutes (REG_MAINBOARD_USERMODE_FIREPLACE_TIME = 253)
+        - REFRESH: minutes (REG_MAINBOARD_USERMODE_REFRESH_TIME = 254)
+        - CROWDED: hours (REG_MAINBOARD_USERMODE_CROWDED_TIME = 255)
+        """
+        if mode_value == UserModes.HOLIDAY:
+            return max(1, time_minutes // (24 * 60))  # Convert to days, minimum 1
+        elif mode_value in [UserModes.AWAY, UserModes.CROWDED]:
+            return max(1, time_minutes // 60)  # Convert to hours, minimum 1
+        elif mode_value in [UserModes.FIREPLACE, UserModes.REFRESH]:
+            return time_minutes  # Already in minutes
+        else:
+            return time_minutes  # Fallback
             
     def get_mode_name_for_key(self, mode_value: int) -> str:
         """Map numeric mode value to string mode key.
@@ -364,24 +384,29 @@ class VentilationUnit:
         Returns:
             None
         """
-        # Map mode names to their respective registers
-        mode_registers = {
-            'holiday': RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME,
-            'away': RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME,
-            'fireplace': RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME,
-            'refresh': RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME,
-            'crowded': RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME,
+        # Map mode names to their respective registers and mode values
+        mode_info = {
+            'holiday': (RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME, UserModes.HOLIDAY),
+            'away': (RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME, UserModes.AWAY),
+            'fireplace': (RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME, UserModes.FIREPLACE),
+            'refresh': (RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME, UserModes.REFRESH),
+            'crowded': (RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME, UserModes.CROWDED),
         }
         
-        if mode not in mode_registers:
-            print(f"Invalid mode: {mode}. Must be one of {list(mode_registers.keys())}")
+        if mode not in mode_info:
+            print(f"Invalid mode: {mode}. Must be one of {list(mode_info.keys())}")
             return
             
-        register = mode_registers[mode]
+        register, mode_value = mode_info[mode]
         
-        if self.set_value(api, register, time_value, True):
-            print(f"{mode.capitalize()} mode time set to {time_value} minutes for {self.name}")
-            # Update our local cache
+        # Convert minutes to the units expected by the API for this specific mode
+        api_time_value = self._convert_minutes_to_api_units(mode_value, time_value)
+        
+        if self.set_value(api, register, api_time_value, True):
+            # Show the user-friendly units in the message
+            unit_name = "days" if mode == 'holiday' else ("hours" if mode in ['away', 'crowded'] else "minutes")
+            print(f"{mode.capitalize()} mode time set to {api_time_value} {unit_name} for {self.name}")
+            # Update our local cache (keep in minutes for internal consistency)
             self.user_mode_times[mode] = time_value
         else:
             print(f"Failed to set {mode} mode time for {self.name}")
