@@ -1,0 +1,77 @@
+# .gitignore
+
+# Environment variables
+.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+env.bak/
+venv.bak/
+
+# Local development configuration
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Jupyter notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Package files
+*.tar.gz
+*.tgz
+*.zip
+
+# private notes
+notes/
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+.pytest_cache/
+.tox/
+nosetests.xml
+.hypothesis/
+
+# Documentation
+/CLAUDE.md
+/TODO.md
