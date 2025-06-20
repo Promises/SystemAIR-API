@@ -6,7 +6,7 @@ REDIRECT_URI = "https://homesolutions.systemair.com"
 AUTH_URL = "https://sso.systemair.com/auth/realms/iot/protocol/openid-connect/auth"
 TOKEN_URL = "https://sso.systemair.com/auth/realms/iot/protocol/openid-connect/token"
 GATEWAY_API_URL = "https://homesolutions.systemair.com/gateway/api"
-REMOTE_API_URL = "https://homesolutions.systemair.com/remote-api/"
+REMOTE_API_URL = "https://homesolutions.systemair.com/gateway/remote-api/"
 
 
 class UserModes(IntEnum):
