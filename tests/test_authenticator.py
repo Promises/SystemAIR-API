@@ -4,7 +4,14 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
+import requests
+
 from systemair_api.auth.authenticator import SystemairAuthenticator
+from systemair_api.utils.exceptions import (
+    AuthenticationError,
+    InvalidCredentialsError,
+    TokenRefreshError,
+)
 
 
 class TestSystemairAuthenticator:
@@ -135,6 +142,77 @@ class TestSystemairAuthenticator:
         assert mock_authenticator.access_token == "mock_access_token_12345"
         assert mock_authenticator.refresh_token == "mock_refresh_token_67890"
         mock_post.assert_called_once()
+
+    @patch('requests.Session.get')
+    @patch('requests.Session.post')
+    def test_simulate_login_invalid_credentials(self, mock_post, mock_get, mock_authenticator,
+                                                mock_auth_html_response):
+        """A re-rendered login form means the server rejected the credentials"""
+        mock_get.return_value = mock_auth_html_response
+        mock_post.return_value = mock_auth_html_response
+
+        with pytest.raises(InvalidCredentialsError):
+            mock_authenticator.simulate_login("https://test_auth_url")
+
+    @patch('requests.Session.get')
+    def test_simulate_login_page_server_error(self, mock_get, mock_authenticator, mock_response):
+        """An outage on the login page is not reported as bad credentials"""
+        mock_get.return_value = mock_response({}, status_code=503, content=b'Service Unavailable')
+
+        with pytest.raises(AuthenticationError) as excinfo:
+            mock_authenticator.simulate_login("https://test_auth_url")
+        assert not isinstance(excinfo.value, InvalidCredentialsError)
+
+    @patch('requests.Session.get')
+    @patch('requests.Session.post')
+    def test_simulate_login_submit_server_error(self, mock_post, mock_get, mock_authenticator,
+                                                mock_auth_html_response, mock_response):
+        """A gateway error after submitting the form is not reported as bad credentials"""
+        mock_get.return_value = mock_auth_html_response
+        mock_post.return_value = mock_response({}, status_code=502, content=b'<html>Bad Gateway</html>')
+
+        with pytest.raises(AuthenticationError) as excinfo:
+            mock_authenticator.simulate_login("https://test_auth_url")
+        assert not isinstance(excinfo.value, InvalidCredentialsError)
+
+    @patch('requests.Session.get')
+    def test_authenticate_network_error(self, mock_get, mock_authenticator):
+        """Network failures during login surface as AuthenticationError"""
+        mock_get.side_effect = requests.exceptions.ConnectionError("DNS failure")
+
+        with pytest.raises(AuthenticationError) as excinfo:
+            mock_authenticator.authenticate()
+        assert not isinstance(excinfo.value, InvalidCredentialsError)
+
+    def test_authenticate_uses_fresh_session(self, mock_authenticator):
+        """Each login starts without cookies left over from an earlier session"""
+        old_session = mock_authenticator.session
+        with patch.object(SystemairAuthenticator, 'simulate_login', return_value="code"), \
+             patch.object(SystemairAuthenticator, 'exchange_code_for_token',
+                          return_value={"access_token": "a", "refresh_token": "r"}), \
+             patch.object(SystemairAuthenticator, 'get_token_expiry', return_value=None):
+            mock_authenticator.authenticate()
+        assert mock_authenticator.session is not old_session
+
+    @patch('requests.post')
+    def test_refresh_access_token_rejected(self, mock_post, mock_authenticator, mock_response):
+        """An inactive refresh token raises TokenRefreshError"""
+        mock_authenticator.refresh_token = "dead_refresh_token"
+        mock_post.return_value = mock_response(
+            {}, status_code=400,
+            content=b'{"error":"invalid_grant","error_description":"Token is not active"}')
+
+        with pytest.raises(TokenRefreshError, match="Token is not active"):
+            mock_authenticator.refresh_access_token()
+
+    @patch('requests.post')
+    def test_refresh_access_token_network_error(self, mock_post, mock_authenticator):
+        """Network failures during refresh surface as TokenRefreshError"""
+        mock_authenticator.refresh_token = "old_refresh_token"
+        mock_post.side_effect = requests.exceptions.Timeout("timed out")
+
+        with pytest.raises(TokenRefreshError):
+            mock_authenticator.refresh_access_token()
 
     def test_is_token_valid(self, mock_authenticator):
         """Test checking if token is valid"""

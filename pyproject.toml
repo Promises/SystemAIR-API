@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "systemair-api-promises"
-version = "0.1.1"
+version = "0.2.0"
 description = "Python library for communicating with and controlling Systemair ventilation units"
 readme = "README.md"
 license = {text = "MIT"}

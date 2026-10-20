@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional, Any, Union, cast
 import requests
-from systemair_api.utils.constants import APIEndpoints
+from systemair_api.utils.constants import APIEndpoints, REQUEST_TIMEOUT
 from systemair_api.utils.exceptions import APIError, DeviceNotFoundError, RateLimitError
 
 class SystemairAPI:
@@ -69,7 +69,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data)
+            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
             
             if response.status_code == 429:
                 retry_after = response.headers.get('Retry-After')
@@ -126,7 +126,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data)
+            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data, timeout=REQUEST_TIMEOUT)
             
             if response.status_code == 404:
                 raise DeviceNotFoundError(device_id)
@@ -189,7 +189,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data)
+            response = requests.post(APIEndpoints.GATEWAY, headers=self.headers, json=data, timeout=REQUEST_TIMEOUT)
             
             if response.status_code == 429:
                 retry_after = response.headers.get('Retry-After')
@@ -247,7 +247,7 @@ class SystemairAPI:
         }
 
         try:
-            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data)
+            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data, timeout=REQUEST_TIMEOUT)
             
             if response.status_code == 404:
                 raise DeviceNotFoundError(device_id)

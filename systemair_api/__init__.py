@@ -7,6 +7,7 @@ from systemair_api.api.websocket_client import SystemairWebSocket
 from systemair_api.utils.exceptions import (
     SystemairError,
     AuthenticationError,
+    InvalidCredentialsError,
     TokenRefreshError,
     APIError,
     DeviceNotFoundError,
@@ -24,6 +25,7 @@ __all__ = [
     'SystemairWebSocket',
     'SystemairError',
     'AuthenticationError',
+    'InvalidCredentialsError',
     'TokenRefreshError',
     'APIError',
     'DeviceNotFoundError',

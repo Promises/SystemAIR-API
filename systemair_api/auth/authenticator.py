@@ -7,8 +7,8 @@ import base64
 from typing import Dict, Optional, Any, Union, cast
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup, Tag
-from systemair_api.utils.constants import APIEndpoints, CLIENT_ID, REDIRECT_URI
-from systemair_api.utils.exceptions import AuthenticationError, TokenRefreshError
+from systemair_api.utils.constants import APIEndpoints, CLIENT_ID, REDIRECT_URI, REQUEST_TIMEOUT
+from systemair_api.utils.exceptions import AuthenticationError, InvalidCredentialsError, TokenRefreshError
 
 class SystemairAuthenticator:
     """Authentication handler for Systemair Home Solutions cloud.
@@ -80,7 +80,9 @@ class SystemairAuthenticator:
             Exception: If login fails or authorization code cannot be obtained
         """
         # print(f"Fetching login page from: {auth_url}")
-        response = self.session.get(auth_url)
+        response = self.session.get(auth_url, timeout=REQUEST_TIMEOUT)
+        if response.status_code >= 400:
+            raise AuthenticationError(f'Login page returned HTTP {response.status_code}')
         soup = BeautifulSoup(response.content, 'html.parser')
 
         form = soup.find('form')
@@ -116,7 +118,7 @@ class SystemairAuthenticator:
         else:
             action_url_str = action_url
             
-        response = self.session.post(action_url_str, data=form_data, headers=headers, allow_redirects=False)
+        response = self.session.post(action_url_str, data=form_data, headers=headers, allow_redirects=False, timeout=REQUEST_TIMEOUT)
         # print(f"Login form submission response status: {response.status_code} {response.reason}")
 
         if response.status_code == 302:
@@ -126,7 +128,7 @@ class SystemairAuthenticator:
             if redirect_url is None:
                 raise AuthenticationError('Redirect URL not found in headers')
 
-            response = self.session.get(redirect_url, allow_redirects=True)
+            response = self.session.get(redirect_url, allow_redirects=True, timeout=REQUEST_TIMEOUT)
             # print(f"Redirect follow-up response status: {response.status_code} {response.reason}")
 
             if response.status_code == 200:
@@ -139,8 +141,18 @@ class SystemairAuthenticator:
                     raise AuthenticationError('Authorization code not found in final URL')
             else:
                 raise AuthenticationError('Failed to follow redirect URL')
+        elif self._is_login_form(response):
+            # Keycloak re-renders the login form instead of redirecting when
+            # it rejects the credentials
+            raise InvalidCredentialsError()
         else:
-            raise AuthenticationError('Login failed or redirect did not occur')
+            raise AuthenticationError(f'Login failed: HTTP {response.status_code}, no redirect')
+
+    @staticmethod
+    def _is_login_form(response: requests.Response) -> bool:
+        """Check whether a response is the username/password login form."""
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return soup.find('input', attrs={'name': 'password'}) is not None
 
     def exchange_code_for_token(self, auth_code: str) -> Dict[str, Any]:
         """Exchange an authorization code for access and refresh tokens.
@@ -174,7 +186,7 @@ class SystemairAuthenticator:
             'TE': 'trailers',
         }
 
-        response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers)
+        response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers, timeout=REQUEST_TIMEOUT)
         if response.status_code == 200:
             return cast(Dict[str, Any], response.json())
         else:
@@ -199,10 +211,16 @@ class SystemairAuthenticator:
         Raises:
             AuthenticationError: If authentication fails for any reason
         """
+        # Start from a clean cookie jar: leftover SSO cookies from an expired
+        # session can make the login page redirect instead of showing the form
+        self.session = requests.Session()
         state = self.generate_state_parameter()
         auth_url = self.construct_auth_url(state)
-        auth_code = self.simulate_login(auth_url)
-        token_response = self.exchange_code_for_token(auth_code)
+        try:
+            auth_code = self.simulate_login(auth_url)
+            token_response = self.exchange_code_for_token(auth_code)
+        except requests.exceptions.RequestException as e:
+            raise AuthenticationError(f'Login request failed: {e}') from e
         self.access_token = token_response.get('access_token')
         self.refresh_token = token_response.get('refresh_token')
         
@@ -243,7 +261,11 @@ class SystemairAuthenticator:
             'Sec-Fetch-Site': 'same-site',
         }
 
-        response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers)
+        try:
+            response = requests.post(APIEndpoints.TOKEN, data=data, headers=headers, timeout=REQUEST_TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            raise TokenRefreshError(f"Token refresh request failed: {e}") from e
+
         if response.status_code == 200:
             token_data = response.json()
             self.access_token = token_data.get('access_token')

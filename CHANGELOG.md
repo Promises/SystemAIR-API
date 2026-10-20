@@ -27,6 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Token refresh handling
 
+## [0.2.0] - 2026-10-20
+
+### Added
+- `InvalidCredentialsError` (subclass of `AuthenticationError`), raised only when
+  the SSO server rejects the username or password. Every other login failure stays
+  a plain `AuthenticationError`, so callers can tell bad credentials from outages.
+- 30 second timeout (`REQUEST_TIMEOUT`) on every HTTP request; previously a stalled
+  connection could block the caller indefinitely.
+
+### Changed
+- `authenticate()` starts with a fresh HTTP session so leftover SSO cookies cannot
+  interfere with a re-login.
+- An HTTP error on the login page now raises `AuthenticationError` with the status
+  code instead of "Login form not found".
+- Network errors during login raise `AuthenticationError`, and during token refresh
+  `TokenRefreshError`, instead of leaking raw `requests` exceptions.
+
 ## [0.1.0] - 2025-03-15
 
 ### Added

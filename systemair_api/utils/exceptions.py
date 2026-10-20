@@ -24,6 +24,19 @@ class AuthenticationError(SystemairError):
         super().__init__(message, *args)
 
 
+class InvalidCredentialsError(AuthenticationError):
+    """Exception raised when the server rejects the username or password.
+
+    Unlike its parent, this is not transient: retrying with the same
+    credentials will keep failing until the user updates them.
+    """
+
+    def __init__(
+        self, message: str = "Invalid username or password", *args: Any
+    ) -> None:
+        super().__init__(message, *args)
+
+
 class TokenRefreshError(AuthenticationError):
     """Exception raised when token refresh fails."""
 

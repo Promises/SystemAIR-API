@@ -8,6 +8,9 @@ TOKEN_URL = "https://sso.systemair.com/auth/realms/iot/protocol/openid-connect/t
 GATEWAY_API_URL = "https://homesolutions.systemair.com/gateway/api"
 REMOTE_API_URL = "https://homesolutions.systemair.com/gateway/remote-api/"
 
+# Seconds to wait for any HTTP request before giving up
+REQUEST_TIMEOUT = 30
+
 
 class UserModes(IntEnum):
     """User modes for ventilation units."""
