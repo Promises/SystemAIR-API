@@ -151,3 +151,37 @@ class TestSystemairAPI:
         # Assertions
         assert result is None
         mock_post.assert_called_once()
+
+    @patch('requests.post')
+    def test_fetch_data_items(self, mock_post, api_client, mock_response):
+        """Test reading specific registers from a device"""
+        mock_post.return_value = mock_response({"data": {"GetDataItems": [{"id": 89, "value": 179}]}})
+        device_id = "IAM_123456789ABC"
+
+        result = api_client.fetch_data_items(device_id, [57, 88, 89])
+
+        assert result["data"]["GetDataItems"][0] == {"id": 89, "value": 179}
+        call_kwargs = mock_post.call_args[1]
+        assert call_kwargs["headers"]["device-id"] == device_id
+        assert call_kwargs["headers"]["device-type"] == "LEGACY"
+        assert call_kwargs["json"]["variables"]["input"] == [57, 88, 89]
+        assert "GetDataItems" in call_kwargs["json"]["query"]
+        assert call_kwargs["timeout"] > 0
+
+    @patch('requests.post')
+    def test_fetch_data_items_graphql_error(self, mock_post, api_client, mock_response):
+        """A GraphQL error in the response raises APIError"""
+        from systemair_api.utils.exceptions import APIError
+        mock_post.return_value = mock_response({"errors": [{"message": "Device offline"}]})
+
+        with pytest.raises(APIError, match="Device offline"):
+            api_client.fetch_data_items("IAM_123456789ABC", [57])
+
+    @patch('requests.post')
+    def test_fetch_data_items_network_error(self, mock_post, api_client):
+        """Network failures raise APIError, not raw requests exceptions"""
+        from systemair_api.utils.exceptions import APIError
+        mock_post.side_effect = requests.exceptions.ConnectionError("DNS failure")
+
+        with pytest.raises(APIError):
+            api_client.fetch_data_items("IAM_123456789ABC", [57])

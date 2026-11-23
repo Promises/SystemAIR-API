@@ -155,6 +155,63 @@ class SystemairAPI:
             raise APIError(f"Failed to fetch device status: {str(e)}", 
                           getattr(e, 'response', None) and getattr(e.response, 'status_code', None))
 
+    def fetch_data_items(self, device_id: str, register_ids: List[int]) -> Dict[str, Any]:
+        """Read specific registers from a device.
+
+        Unlike fetch_device_status, which returns the fixed set of registers on the
+        app's home view, this reads any registers by id. The response may also contain
+        registers the requested ones depend on (e.g. the temperature unit register).
+
+        Args:
+            device_id: The unique identifier of the device
+            register_ids: The register ids to read
+
+        Returns:
+            dict: API response; the registers are in data.GetDataItems as
+            dicts with at least 'id' and 'value'
+
+        Raises:
+            APIError: If the API request fails
+            DeviceNotFoundError: If the device is not found
+            RateLimitError: If rate limit is exceeded
+        """
+        headers = self.headers.copy()
+        headers['device-id'] = device_id
+        headers['device-type'] = 'LEGACY'
+
+        data = {
+            "variables": {"input": register_ids},
+            "query": """
+            query ($input: [Int]) {
+                GetDataItems(input: $input)
+            }
+            """
+        }
+
+        try:
+            response = requests.post(APIEndpoints.REMOTE, headers=headers, json=data, timeout=REQUEST_TIMEOUT)
+
+            if response.status_code == 404:
+                raise DeviceNotFoundError(device_id)
+
+            if response.status_code == 429:
+                retry_after = response.headers.get('Retry-After')
+                retry_seconds = int(retry_after) if retry_after and retry_after.isdigit() else None
+                raise RateLimitError(retry_after=retry_seconds)
+
+            response.raise_for_status()
+            result = cast(Dict[str, Any], response.json())
+
+            if 'errors' in result:
+                errors = result['errors']
+                raise APIError(message=errors[0].get('message', 'Unknown API error'),
+                               response_data=result)
+
+            return result
+        except requests.exceptions.RequestException as e:
+            raise APIError(f"Failed to fetch data items: {str(e)}",
+                           getattr(e, 'response', None) and getattr(e.response, 'status_code', None))
+
     def get_account_devices(self) -> Dict[str, Any]:
         """Get all devices associated with the current account.
         

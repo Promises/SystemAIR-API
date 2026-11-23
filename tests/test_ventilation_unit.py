@@ -21,7 +21,7 @@ class TestVentilationUnit:
         assert ventilation_unit.airflow is None
         assert ventilation_unit.temperature is None
         assert ventilation_unit.user_mode is None
-        assert ventilation_unit.temperatures == {"oat": None, "sat": None, "setpoint": None}
+        assert ventilation_unit.temperatures == {"oat": None, "sat": None, "eat": None, "setpoint": None}
         assert len(ventilation_unit.active_functions) > 0
         for function, state in ventilation_unit.active_functions.items():
             assert state is False
@@ -180,3 +180,54 @@ class TestVentilationUnit:
         # Test active function update
         ventilation_unit._update_attribute({"id": RegisterConstants.REG_MAINBOARD_FUNCTION_ACTIVE_HEATING, "value": 1})
         assert ventilation_unit.active_functions["heating"] == 1
+
+    @staticmethod
+    def _data_items(*items):
+        """A fetch_data_items response, including the temperature-unit register
+        (id 28) the cloud adds alongside temperature registers."""
+        unit_register = {"id": 28, "type": 3, "value": 0}
+        return {"data": {"GetDataItems": [unit_register, *[{"id": i, "type": 2, "value": v} for i, v in items]]}}
+
+    def test_extract_temperature_from_humidity_board(self, ventilation_unit):
+        """With the humidity sensor board fitted, its value wins over the unused sensor register"""
+        ventilation_unit.update_from_data_items(self._data_items(
+            (RegisterConstants.REG_MAINBOARD_SENSOR_EAT, 0),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_CONFIGURED, True),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_VALUE, 179),
+        ))
+        assert ventilation_unit.temperatures["eat"] == 17.9
+
+    def test_extract_temperature_from_dedicated_sensor(self, ventilation_unit):
+        """Without the humidity sensor board, the dedicated extract air sensor is used"""
+        ventilation_unit.update_from_data_items(self._data_items(
+            (RegisterConstants.REG_MAINBOARD_SENSOR_EAT, 238),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_CONFIGURED, False),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_VALUE, 0),
+        ))
+        assert ventilation_unit.temperatures["eat"] == 23.8
+
+    def test_extract_temperature_independent_of_register_order(self, ventilation_unit):
+        """The source choice holds whichever order the registers arrive in"""
+        ventilation_unit.update_from_data_items(self._data_items(
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_VALUE, 179),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_EAT, 0),
+            (RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_CONFIGURED, True),
+        ))
+        assert ventilation_unit.temperatures["eat"] == 17.9
+
+    def test_extract_temperature_unknown_until_source_known(self, ventilation_unit):
+        """A bare sensor reading is not reported until it is known which sensor is fitted"""
+        ventilation_unit.update_from_data_items(self._data_items(
+            (RegisterConstants.REG_MAINBOARD_SENSOR_EAT, 0),
+        ))
+        assert ventilation_unit.temperatures["eat"] is None
+
+    def test_update_from_data_items_ignores_malformed_response(self, ventilation_unit):
+        """An empty or error-shaped response changes nothing"""
+        ventilation_unit.update_from_data_items({})
+        ventilation_unit.update_from_data_items({"data": {"GetDataItems": None}})
+        assert ventilation_unit.temperatures["eat"] is None
+
+    def test_extract_air_registers(self):
+        """The registers callers must fetch for the extract air temperature"""
+        assert VentilationUnit.EXTRACT_AIR_REGISTERS == [57, 88, 89]

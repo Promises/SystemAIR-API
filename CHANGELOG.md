@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Token refresh handling
 
+## [0.3.0] - 2026-11-23
+
+### Added
+- Extract air temperature as `VentilationUnit.temperatures['eat']` (issue #1). Units with the
+  humidity sensor board report it through that board (registers 88/89), others through the
+  dedicated sensor (register 57); the fitted one is picked automatically.
+- `SystemairAPI.fetch_data_items(device_id, register_ids)` reads any registers by id
+  (GraphQL `GetDataItems`), and `VentilationUnit.update_from_data_items` applies the result.
+  The registers needed for extract air are in `VentilationUnit.EXTRACT_AIR_REGISTERS`; they
+  are not on the home view that `fetch_device_status` returns.
+
 ## [0.2.0] - 2026-10-20
 
 ### Added

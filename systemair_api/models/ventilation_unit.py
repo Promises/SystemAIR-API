@@ -11,7 +11,15 @@ from systemair_api.api.systemair_api import SystemairAPI
 
 class VentilationUnit:
     """Model representing a Systemair ventilation unit."""
-    
+
+    # Not on the app's home view, so fetch them with SystemairAPI.fetch_data_items
+    # and pass the result to update_from_data_items
+    EXTRACT_AIR_REGISTERS: List[int] = [
+        RegisterConstants.REG_MAINBOARD_SENSOR_EAT,
+        RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_CONFIGURED,
+        RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_VALUE,
+    ]
+
     def __init__(self, identifier: str, name: str) -> None:
         """Initialize a ventilation unit with a unique identifier and name."""
         self.identifier: str = identifier
@@ -40,8 +48,14 @@ class VentilationUnit:
         self.temperatures: Dict[str, Optional[float]] = {
             "oat": None,  # Outdoor Air Temperature
             "sat": None,  # Supply Air Temperature
+            "eat": None,  # Extract Air Temperature
             "setpoint": None
         }
+        # Extract air can be measured by a dedicated sensor or by the humidity
+        # sensor board (PDM); temperatures['eat'] is resolved from these
+        self._eat_sensor: Optional[float] = None
+        self._pdm_eat_configured: Optional[bool] = None
+        self._pdm_eat: Optional[float] = None
         self.versions: List[Dict[str, str]] = []
 
         # Attributes from API data
@@ -81,6 +95,12 @@ class VentilationUnit:
                     data_item = child['properties']['dataItem']
                     self._update_attribute(data_item)
 
+    def update_from_data_items(self, api_data: Dict[str, Any]) -> None:
+        """Update the ventilation unit with a SystemairAPI.fetch_data_items response."""
+        for data_item in api_data.get('data', {}).get('GetDataItems') or []:
+            if 'id' in data_item and 'value' in data_item:
+                self._update_attribute(data_item)
+
     def _update_attribute(self, data_item: Dict[str, Any]) -> None:
         """Update a specific attribute based on register data."""
         register_id = data_item['id']
@@ -108,6 +128,15 @@ class VentilationUnit:
             self.air_quality = value
         elif register_id == RegisterConstants.REG_MAINBOARD_SENSOR_OAT:
             self.temperatures['oat'] = value / 10.0
+        elif register_id == RegisterConstants.REG_MAINBOARD_SENSOR_EAT:
+            self._eat_sensor = value / 10.0
+            self._resolve_extract_temperature()
+        elif register_id == RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_CONFIGURED:
+            self._pdm_eat_configured = bool(value)
+            self._resolve_extract_temperature()
+        elif register_id == RegisterConstants.REG_MAINBOARD_SENSOR_PDM_EAT_VALUE:
+            self._pdm_eat = value / 10.0
+            self._resolve_extract_temperature()
         elif register_id == RegisterConstants.REG_MAINBOARD_ECO_MODE_ON_OFF:
             self.eco_mode = value
         elif register_id == RegisterConstants.REG_MAINBOARD_LOCKED_USER:
@@ -126,6 +155,17 @@ class VentilationUnit:
                                   RegisterConstants.REG_MAINBOARD_FUNCTION_ACTIVE_CDI_3 + 1):
             function_name = RegisterConstants.get_register_name(register_id).split('_')[-1].lower()
             self.active_functions[function_name] = value
+
+    def _resolve_extract_temperature(self) -> None:
+        """Pick the extract air temperature from whichever sensor the unit has.
+
+        Units with the humidity sensor board report extract air through it and leave
+        the dedicated sensor register at 0, so the board's value wins when it is fitted.
+        """
+        if self._pdm_eat_configured:
+            self.temperatures['eat'] = self._pdm_eat
+        elif self._pdm_eat_configured is False:
+            self.temperatures['eat'] = self._eat_sensor
 
     def update_from_websocket(self, ws_data: Dict[str, Any]) -> None:
         """Update the ventilation unit with data from a WebSocket message."""
