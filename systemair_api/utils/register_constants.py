@@ -1,5 +1,6 @@
 """Register constants for Systemair ventilation units."""
 
+
 class RegisterConstants:
     """Register constants used for reading and writing data to ventilation units."""
     REG_IAM_HEARTBEAT = 0
@@ -31,10 +32,10 @@ class RegisterConstants:
     REG_MAINBOARD_HOUR_FORMAT = 26
     REG_MAINBOARD_SYSTEM_UNIT_MODEL_TYPE = 27
     REG_MAINBOARD_SYSTEM_UNIT_TEMPERATURE = 28
-    REG_MAINBOARD_USERMODE_MODE_HMI = 29 # Ventilation mode
-    REG_MAINBOARD_USERMODE_HMI_CHANGE_REQUEST = 30 # Set ventilation mode ACTION
-    REG_MAINBOARD_SPEED_INDICATION_APP = 31 # Air speed
-    REG_MAINBOARD_TC_SP = 32 # Target setpoint supply air temp
+    REG_MAINBOARD_USERMODE_MODE_HMI = 29  # Ventilation mode
+    REG_MAINBOARD_USERMODE_HMI_CHANGE_REQUEST = 30  # Set ventilation mode ACTION
+    REG_MAINBOARD_SPEED_INDICATION_APP = 31  # Air speed
+    REG_MAINBOARD_TC_SP = 32  # Target setpoint supply air temp
     REG_MAINBOARD_IAQ_LEVEL = 33
     REG_MAINBOARD_ECO_MODE_ON_OFF = 34
     REG_MAINBOARD_LOCKED_USER = 35
@@ -56,7 +57,7 @@ class RegisterConstants:
     REG_MAINBOARD_WS_FAN_LEVEL_SCHEDULED = 51
     REG_MAINBOARD_WS_FAN_LEVEL_UNSCHEDULED = 52
     REG_MAINBOARD_SENSOR_SAT = 53
-    REG_MAINBOARD_SENSOR_OAT = 54 # Sensor Outside air temp (Celsius * 10)
+    REG_MAINBOARD_SENSOR_OAT = 54  # Sensor Outside air temp (Celsius * 10)
     REG_MAINBOARD_SENSOR_FPT = 55
     REG_MAINBOARD_SENSOR_RAT = 56
     REG_MAINBOARD_SENSOR_EAT = 57
@@ -307,7 +308,6 @@ class RegisterConstants:
                 return attr
         return f"UNKNOWN_REGISTER_{register_number}"
 
-
     @classmethod
     def get_register_name_by_number(cls, register_number: int) -> str:
         """Get the register name for a given register number."""
@@ -315,7 +315,6 @@ class RegisterConstants:
             if not attr.startswith("__") and value == register_number:
                 return attr
         return f"UNKNOWN_REGISTER_{register_number}"
-
 
     @classmethod
     def get_register_name_without_prefix(cls, register_number: int) -> str:

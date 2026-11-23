@@ -4,25 +4,26 @@ import uuid
 import requests
 import json
 import base64
-from typing import Dict, Optional, Any, Union, cast
+from typing import Dict, Optional, Any, cast
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup, Tag
 from systemair_api.utils.constants import APIEndpoints, CLIENT_ID, REDIRECT_URI, REQUEST_TIMEOUT
 from systemair_api.utils.exceptions import AuthenticationError, InvalidCredentialsError, TokenRefreshError
 
+
 class SystemairAuthenticator:
     """Authentication handler for Systemair Home Solutions cloud.
-    
+
     Manages the OAuth2 authentication flow, including:
     - Initial login with username/password
     - Token exchange
     - Token refresh
     - Token validation
     """
-    
+
     def __init__(self, email: str, password: str) -> None:
         """Initialize the authenticator with user credentials.
-        
+
         Args:
             email: User's email address
             password: User's password
@@ -36,7 +37,7 @@ class SystemairAuthenticator:
 
     def generate_state_parameter(self) -> str:
         """Generate a random state parameter for the OAuth flow.
-        
+
         Returns:
             str: A random UUID as string
         """
@@ -44,10 +45,10 @@ class SystemairAuthenticator:
 
     def construct_auth_url(self, state: str) -> str:
         """Construct the OAuth authorization URL.
-        
+
         Args:
             state: State parameter to include in the URL
-            
+
         Returns:
             str: Complete authorization URL
         """
@@ -63,19 +64,19 @@ class SystemairAuthenticator:
 
     def simulate_login(self, auth_url: str) -> str:
         """Simulate a browser login to obtain the authorization code.
-        
+
         This method simulates the browser login process by:
         1. Fetching the login page
         2. Extracting the form and input fields
         3. Submitting the form with credentials
         4. Following redirects to obtain the authorization code
-        
+
         Args:
             auth_url: The authorization URL to start the flow
-            
+
         Returns:
             str: The authorization code if successful
-            
+
         Raises:
             Exception: If login fails or authorization code cannot be obtained
         """
@@ -94,20 +95,21 @@ class SystemairAuthenticator:
         action_url = form_tag['action']
         inputs = form_tag.find_all('input')
 
-        form_data = {}
+        form_data: Dict[str, str] = {}
         for input_tag in inputs:
             # Cast each input element to Tag
             input_tag = cast(Tag, input_tag)
             if input_tag.get('name') == 'username':
-                form_data[input_tag['name']] = self.email
+                form_data[str(input_tag['name'])] = self.email
             elif input_tag.get('name') == 'password':
-                form_data[input_tag['name']] = self.password
+                form_data[str(input_tag['name'])] = self.password
             elif input_tag.get('name'):
-                form_data[input_tag['name']] = input_tag.get('value', '')
+                form_data[str(input_tag['name'])] = str(input_tag.get('value', ''))
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8',
+            'Accept': ('text/html,application/xhtml+xml,application/xml;q=0.9,'
+                       'image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8'),
             'Accept-Language': 'en-US,en;q=0.5',
             'Content-Type': 'application/x-www-form-urlencoded',
         }
@@ -117,14 +119,15 @@ class SystemairAuthenticator:
             action_url_str = action_url[0] if action_url else ''
         else:
             action_url_str = action_url
-            
-        response = self.session.post(action_url_str, data=form_data, headers=headers, allow_redirects=False, timeout=REQUEST_TIMEOUT)
+
+        response = self.session.post(action_url_str, data=form_data, headers=headers,
+                                     allow_redirects=False, timeout=REQUEST_TIMEOUT)
         # print(f"Login form submission response status: {response.status_code} {response.reason}")
 
         if response.status_code == 302:
             redirect_url = response.headers.get('Location')
             # print("Redirect URL:", redirect_url)
-            
+
             if redirect_url is None:
                 raise AuthenticationError('Redirect URL not found in headers')
 
@@ -156,13 +159,13 @@ class SystemairAuthenticator:
 
     def exchange_code_for_token(self, auth_code: str) -> Dict[str, Any]:
         """Exchange an authorization code for access and refresh tokens.
-        
+
         Args:
             auth_code: The authorization code obtained from login
-            
+
         Returns:
             dict: Token response containing access_token, refresh_token, etc.
-            
+
         Raises:
             requests.exceptions.HTTPError: If token exchange fails
         """
@@ -197,17 +200,17 @@ class SystemairAuthenticator:
 
     def authenticate(self) -> str:
         """Perform the full authentication flow.
-        
+
         This method orchestrates the complete authentication process:
         1. Generate state parameter
         2. Construct auth URL
         3. Simulate login to get authorization code
         4. Exchange code for tokens
         5. Extract token expiry time
-        
+
         Returns:
             str: The access token if successful
-            
+
         Raises:
             AuthenticationError: If authentication fails for any reason
         """
@@ -223,19 +226,19 @@ class SystemairAuthenticator:
             raise AuthenticationError(f'Login request failed: {e}') from e
         self.access_token = token_response.get('access_token')
         self.refresh_token = token_response.get('refresh_token')
-        
+
         if not self.access_token:
             raise AuthenticationError('No access token found in response')
-            
+
         self.token_expiry = self.get_token_expiry(self.access_token)
         return str(self.access_token)
 
     def refresh_access_token(self) -> str:
         """Refresh the access token using the refresh token.
-        
+
         Returns:
             str: The new access token if successful
-            
+
         Raises:
             TokenRefreshError: If refresh fails or no refresh token is available
         """
@@ -270,10 +273,10 @@ class SystemairAuthenticator:
             token_data = response.json()
             self.access_token = token_data.get('access_token')
             self.refresh_token = token_data.get('refresh_token')  # Update refresh token if provided
-            
+
             if not self.access_token:
                 raise TokenRefreshError('No access token found in refresh response')
-                
+
             self.token_expiry = self.get_token_expiry(self.access_token)
             return str(self.access_token)
         else:
@@ -281,13 +284,13 @@ class SystemairAuthenticator:
 
     def get_token_expiry(self, token: str) -> Optional[datetime]:
         """Decode the JWT and extract the expiry time.
-        
+
         Args:
             token: JWT token to decode
-            
+
         Returns:
             datetime: Token expiry time as datetime object
-            
+
         Raises:
             ValueError: If expiry time cannot be found in the token
         """
@@ -317,7 +320,7 @@ class SystemairAuthenticator:
 
     def is_token_valid(self) -> bool:
         """Check if the current token is still valid.
-        
+
         Returns:
             bool: True if token is valid, False otherwise
         """

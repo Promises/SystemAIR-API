@@ -84,7 +84,7 @@ class TestSystemairWebSocket:
         websocket_client.connect()
         
         # Assertions
-        mock_enable_trace.assert_called_once_with(True)
+        mock_enable_trace.assert_called_once_with(False)
         mock_websocket_app.assert_called_once()
         
         # Check that WebSocketApp was created with correct parameters

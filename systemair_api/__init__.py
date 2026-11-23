@@ -20,7 +20,7 @@ from systemair_api.__version__ import __version__
 
 __all__ = [
     'SystemairAPI',
-    'SystemairAuthenticator', 
+    'SystemairAuthenticator',
     'VentilationUnit',
     'SystemairWebSocket',
     'SystemairError',

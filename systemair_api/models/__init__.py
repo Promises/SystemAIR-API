@@ -2,3 +2,5 @@
 
 from systemair_api.models.ventilation_data import VentilationData
 from systemair_api.models.ventilation_unit import VentilationUnit
+
+__all__ = ['VentilationData', 'VentilationUnit']

@@ -1,7 +1,7 @@
 """Ventilation unit model."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union, Tuple, Set, cast
+from typing import Dict, List, Optional, Any, Union
 
 from systemair_api.models.ventilation_data import USER_MODES, VentilationData
 from systemair_api.utils.constants import UserModes
@@ -41,7 +41,7 @@ class VentilationUnit:
         self.user_mode_times: Dict[str, Optional[int]] = {
             "holiday": None,  # REG_MAINBOARD_USERMODE_HOLIDAY_TIME
             "away": None,     # REG_MAINBOARD_USERMODE_AWAY_TIME
-            "fireplace": None, # REG_MAINBOARD_USERMODE_FIREPLACE_TIME
+            "fireplace": None,  # REG_MAINBOARD_USERMODE_FIREPLACE_TIME
             "refresh": None,  # REG_MAINBOARD_USERMODE_REFRESH_TIME
             "crowded": None,  # REG_MAINBOARD_USERMODE_CROWDED_TIME
         }
@@ -179,11 +179,11 @@ class VentilationUnit:
         if "model" in properties:
             self.model = properties.get("model")
         if "activeAlarms" in properties:
-            self.active_alarms = properties.get("activeAlarms")
+            self.active_alarms = properties["activeAlarms"]
         if "airflow" in properties:
             self.airflow = properties.get("airflow")
         if "connectivity" in properties:
-            self.connectivity = properties.get("connectivity")
+            self.connectivity = properties["connectivity"]
         if "filterExpiration" in properties:
             self.filter_expiration = properties.get("filterExpiration")
         if "serialNumber" in properties:
@@ -231,16 +231,16 @@ class VentilationUnit:
         if self.user_mode is None:
             return "Unknown"
         return VentilationData.get_user_mode_name(self.user_mode)
-        
+
     def get_fan_speed(self) -> int:
         """Get the fan speed as a percentage (0-100)."""
         return self.airflow or 0
-        
+
     def get_filter_alarm(self) -> bool:
         """Check if there's a filter alarm active."""
         # Placeholder implementation - will need to be updated based on how filter alarms are detected
         return self.active_alarms
-        
+
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the ventilation unit as a dictionary."""
         return {
@@ -296,15 +296,16 @@ class VentilationUnit:
             if is_active:
                 print(f"  - {function.replace('_', ' ').title()}")
 
-    def set_value(self, api: SystemairAPI, key: int, value: Union[int, float, str], noprint: bool = False) -> Optional[bool]:
+    def set_value(self, api: SystemairAPI, key: int, value: Union[int, float, str],
+                  noprint: bool = False) -> Optional[bool]:
         """Set a register value for the ventilation unit.
-        
+
         Args:
             api: The SystemairAPI instance to use for communication
             key: The register key to set
             value: The value to set
             noprint: Whether to suppress print output
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -324,25 +325,25 @@ class VentilationUnit:
 
     def set_user_mode(self, api: SystemairAPI, mode_value: int, time_minutes: Optional[int] = None) -> None:
         """Set the user mode for the ventilation unit.
-        
+
         Args:
             api: The SystemairAPI instance to use for communication
             mode_value: The mode value to set (use UserModes enum)
             time_minutes: Optional time duration in minutes for timed modes
                 (Refresh, Crowded, Fireplace, Away, Holiday)
-            
+
         Returns:
             None
         """
         # Map mode values to their time registers and determine if we need to set time
-        mode_to_time_register = {
+        mode_to_time_register: Dict[int, int] = {
             UserModes.HOLIDAY: RegisterConstants.REG_MAINBOARD_USERMODE_HOLIDAY_TIME,
             UserModes.AWAY: RegisterConstants.REG_MAINBOARD_USERMODE_AWAY_TIME,
             UserModes.FIREPLACE: RegisterConstants.REG_MAINBOARD_USERMODE_FIREPLACE_TIME,
             UserModes.REFRESH: RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME,
             UserModes.CROWDED: RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME,
         }
-        
+
         # Set the time value first if provided and this is a timed mode
         time_register = mode_to_time_register.get(mode_value)
         if time_minutes is not None and time_register is not None:
@@ -353,7 +354,7 @@ class VentilationUnit:
             mode_key = self.get_mode_name_for_key(mode_value)
             if mode_key and hasattr(self, "user_mode_times") and mode_key in self.user_mode_times:
                 self.user_mode_times[mode_key] = time_minutes
-        
+
         # Then set the mode
         if self.set_value(api, RegisterConstants.REG_MAINBOARD_USERMODE_HMI_CHANGE_REQUEST, mode_value + 1, True):
             # self.user_mode = mode_value
@@ -363,10 +364,10 @@ class VentilationUnit:
 
     def _convert_minutes_to_api_units(self, mode_value: int, time_minutes: int) -> int:
         """Convert time in minutes to the units expected by the API for each mode.
-        
+
         API expects:
         - HOLIDAY: days (REG_MAINBOARD_USERMODE_HOLIDAY_TIME = 251)
-        - AWAY: hours (REG_MAINBOARD_USERMODE_AWAY_TIME = 252) 
+        - AWAY: hours (REG_MAINBOARD_USERMODE_AWAY_TIME = 252)
         - FIREPLACE: minutes (REG_MAINBOARD_USERMODE_FIREPLACE_TIME = 253)
         - REFRESH: minutes (REG_MAINBOARD_USERMODE_REFRESH_TIME = 254)
         - CROWDED: hours (REG_MAINBOARD_USERMODE_CROWDED_TIME = 255)
@@ -379,17 +380,17 @@ class VentilationUnit:
             return time_minutes  # Already in minutes
         else:
             return time_minutes  # Fallback
-            
+
     def get_mode_name_for_key(self, mode_value: int) -> str:
         """Map numeric mode value to string mode key.
-        
+
         Args:
             mode_value: The numeric mode value from UserModes enum
-            
+
         Returns:
             str: The string key name (e.g., 'holiday', 'away', etc.)
         """
-        mode_map = {
+        mode_map: Dict[int, str] = {
             UserModes.HOLIDAY: "holiday",
             UserModes.AWAY: "away",
             UserModes.FIREPLACE: "fireplace",
@@ -397,14 +398,14 @@ class VentilationUnit:
             UserModes.CROWDED: "crowded"
         }
         return mode_map.get(mode_value, "")
-            
+
     def set_temperature(self, api: SystemairAPI, temperature: int) -> None:
         """Set the temperature setpoint for the ventilation unit.
-        
+
         Args:
             api: The SystemairAPI instance to use for communication
             temperature: Temperature in tenths of degrees (e.g., 210 for 21.0°C)
-            
+
         Returns:
             None
         """
@@ -412,15 +413,15 @@ class VentilationUnit:
             print(f"Temperature set to {temperature/10.0:.1f}°C for {self.name}")
         else:
             print(f"Failed to set temperature for {self.name}")
-            
+
     def set_user_mode_time(self, api: SystemairAPI, mode: str, time_value: int) -> None:
         """Set the time duration for a specific user mode.
-        
+
         Args:
             api: The SystemairAPI instance to use for communication
             mode: The mode to set time for ('holiday', 'away', 'fireplace', 'refresh', 'crowded')
             time_value: The time duration in minutes
-            
+
         Returns:
             None
         """
@@ -432,16 +433,16 @@ class VentilationUnit:
             'refresh': (RegisterConstants.REG_MAINBOARD_USERMODE_REFRESH_TIME, UserModes.REFRESH),
             'crowded': (RegisterConstants.REG_MAINBOARD_USERMODE_CROWDED_TIME, UserModes.CROWDED),
         }
-        
+
         if mode not in mode_info:
             print(f"Invalid mode: {mode}. Must be one of {list(mode_info.keys())}")
             return
-            
+
         register, mode_value = mode_info[mode]
-        
+
         # Convert minutes to the units expected by the API for this specific mode
         api_time_value = self._convert_minutes_to_api_units(mode_value, time_value)
-        
+
         if self.set_value(api, register, api_time_value, True):
             # Show the user-friendly units in the message
             unit_name = "days" if mode == 'holiday' else ("hours" if mode in ['away', 'crowded'] else "minutes")

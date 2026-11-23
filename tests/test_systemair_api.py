@@ -4,6 +4,7 @@ import requests
 
 from systemair_api.api.systemair_api import SystemairAPI
 from systemair_api.utils.constants import APIEndpoints
+from systemair_api.utils.exceptions import APIError
 
 
 class TestSystemairAPI:
@@ -35,15 +36,15 @@ class TestSystemairAPI:
 
     @patch('requests.post')
     def test_get_account_devices_error(self, mock_post, api_client):
-        """Test handling error when getting account devices"""
+        """Network errors raise APIError rather than returning None when getting account devices"""
         # Setup - simulate a request exception
         mock_post.side_effect = requests.exceptions.RequestException("Test error")
         
         # Call the method
-        result = api_client.get_account_devices()
+        with pytest.raises(APIError):
+            api_client.get_account_devices()
         
         # Assertions
-        assert result is None
         mock_post.assert_called_once()
 
     @patch('requests.post')
@@ -69,16 +70,16 @@ class TestSystemairAPI:
 
     @patch('requests.post')
     def test_fetch_device_status_error(self, mock_post, api_client):
-        """Test handling error when fetching device status"""
+        """Network errors raise APIError rather than returning None when fetching device status"""
         # Setup - simulate a request exception
         mock_post.side_effect = requests.exceptions.RequestException("Test error")
         device_id = "IAM_123456789ABC"
         
         # Call the method
-        result = api_client.fetch_device_status(device_id)
+        with pytest.raises(APIError):
+            api_client.fetch_device_status(device_id)
         
         # Assertions
-        assert result is None
         mock_post.assert_called_once()
 
     @patch('requests.post')
@@ -101,16 +102,16 @@ class TestSystemairAPI:
 
     @patch('requests.post')
     def test_broadcast_device_statuses_error(self, mock_post, api_client):
-        """Test handling error when broadcasting device statuses"""
+        """Network errors raise APIError rather than returning None when broadcasting device statuses"""
         # Setup - simulate a request exception
         mock_post.side_effect = requests.exceptions.RequestException("Test error")
         device_ids = ["IAM_123456789ABC"]
         
         # Call the method
-        result = api_client.broadcast_device_statuses(device_ids)
+        with pytest.raises(APIError):
+            api_client.broadcast_device_statuses(device_ids)
         
         # Assertions
-        assert result is None
         mock_post.assert_called_once()
 
     @patch('requests.post')
@@ -138,7 +139,7 @@ class TestSystemairAPI:
 
     @patch('requests.post')
     def test_write_data_item_error(self, mock_post, api_client):
-        """Test handling error when writing data item"""
+        """Network errors raise APIError rather than returning None when writing data item"""
         # Setup - simulate a request exception
         mock_post.side_effect = requests.exceptions.RequestException("Test error")
         device_id = "IAM_123456789ABC"
@@ -146,10 +147,10 @@ class TestSystemairAPI:
         value = 2
         
         # Call the method
-        result = api_client.write_data_item(device_id, register_id, value)
+        with pytest.raises(APIError):
+            api_client.write_data_item(device_id, register_id, value)
         
         # Assertions
-        assert result is None
         mock_post.assert_called_once()
 
     @patch('requests.post')

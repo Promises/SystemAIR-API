@@ -4,19 +4,20 @@ import websocket
 import json
 import threading
 import ssl
-from typing import Any, Callable, Dict, Optional, Union, cast
-from websocket import WebSocket, WebSocketApp
+from typing import Any, Callable, Dict, Optional
+from websocket import WebSocketApp
+
 
 class SystemairWebSocket:
     """WebSocket client for real-time updates from Systemair Home Solutions API.
-    
+
     Establishes a persistent connection to the Systemair WebSocket server
     and processes incoming messages through a callback function.
     """
-    
+
     def __init__(self, access_token: str, on_message_callback: Callable[[Dict[str, Any]], None]) -> None:
         """Initialize the WebSocket client.
-        
+
         Args:
             access_token: A valid JWT access token from authentication
             on_message_callback: Callback function that will be called with message data
@@ -26,9 +27,9 @@ class SystemairWebSocket:
         self.ws: Optional[WebSocketApp] = None
         self.thread: Optional[threading.Thread] = None
 
-    def on_message(self, ws: WebSocket, message: Any) -> None:
+    def on_message(self, ws: WebSocketApp, message: Any) -> None:
         """Handle incoming WebSocket messages.
-        
+
         Args:
             ws: WebSocket connection
             message: Raw message data
@@ -36,9 +37,9 @@ class SystemairWebSocket:
         data = json.loads(message)
         self.on_message_callback(data)
 
-    def on_error(self, ws: WebSocket, error: Any) -> None:
+    def on_error(self, ws: WebSocketApp, error: Any) -> None:
         """Handle WebSocket errors.
-        
+
         Args:
             ws: WebSocket connection
             error: Error information
@@ -46,9 +47,9 @@ class SystemairWebSocket:
         # Log to stdout for diagnostic purposes, but keep it minimal
         print(f"WebSocket error: {error}")
 
-    def on_close(self, ws: WebSocket, close_status_code: Any, close_msg: Any) -> None:
+    def on_close(self, ws: WebSocketApp, close_status_code: Any, close_msg: Any) -> None:
         """Handle WebSocket connection closure.
-        
+
         Args:
             ws: WebSocket connection
             close_status_code: Status code for the closure
@@ -60,9 +61,9 @@ class SystemairWebSocket:
         else:
             print("WebSocket connection closed")
 
-    def on_open(self, ws: WebSocket) -> None:
+    def on_open(self, ws: WebSocketApp) -> None:
         """Handle WebSocket connection opening.
-        
+
         Args:
             ws: WebSocket connection
         """
@@ -71,14 +72,14 @@ class SystemairWebSocket:
 
     def connect(self) -> None:
         """Establish a WebSocket connection in a separate thread.
-        
+
         The connection is opened in a daemon thread to allow the main program
         to continue execution.
         """
         # Disable WebSocket trace output to keep logs cleaner
         websocket.enableTrace(False)
         self.ws = websocket.WebSocketApp(
-            f"wss://homesolutions.systemair.com/streaming/",
+            "wss://homesolutions.systemair.com/streaming/",
             header=[
                 f"Sec-WebSocket-Protocol: accessToken, {self.access_token}",
                 "Origin: https://homesolutions.systemair.com",
